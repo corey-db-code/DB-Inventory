@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>Spreadsheet Mini App</title>
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <link rel="stylesheet" href="./style.css" />
+</head>
+<body>
+  <header class="app-header">
+    <div class="title">📊 Mini Spreadsheet</div>
+    <input id="search" class="search" type="search" placeholder="Search…" />
+  </header>
+
+  <main id="app" class="app">
+    <div class="table-wrap">
+      <table id="grid" aria-label="Data grid">
+        <thead>
+          <tr>
+            <th class="selcol"><input id="check-all" type="checkbox" aria-label="Select all"/></th>
+            <th data-key="id">ID</th>
+            <th data-key="item">Item</th>
+            <th data-key="qty">Qty</th>
+            <th data-key="price">Price</th>
+            <th data-key="total">Total</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+
+    <footer class="footer">
+      <div class="pager">
+        <button id="prev" class="btn" aria-label="Previous page">‹</button>
+        <span id="page-label" class="page-label">Page 1</span>
+        <button id="next" class="btn" aria-label="Next page">›</button>
+        <label class="pagesize">
+          <span>Rows/page</span>
+          <select id="page-size">
+            <option>10</option>
+            <option>20</option>
+            <option selected>30</option>
+            <option>50</option>
+          </select>
+        </label>
+      </div>
+      <button id="send" class="btn primary">Send 0 rows</button>
+    </footer>
+  </main>
+
+  <script src="./main.js"></script>
+</body>
+</html>
