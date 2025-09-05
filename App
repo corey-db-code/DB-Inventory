@@ -1,0 +1,684 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Watch Inventory</title>
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--tg-theme-bg-color, #ffffff);
+            color: var(--tg-theme-text-color, #000000);
+            line-height: 1.4;
+            padding: 12px;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 20px;
+            padding: 20px 0;
+            border-bottom: 1px solid var(--tg-theme-hint-color, #999999);
+        }
+
+        .header h1 {
+            font-size: 24px;
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
+
+        .header p {
+            color: var(--tg-theme-hint-color, #999999);
+            font-size: 14px;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: var(--tg-theme-hint-color, #999999);
+        }
+
+        .loading-spinner {
+            display: inline-block;
+            width: 32px;
+            height: 32px;
+            border: 3px solid var(--tg-theme-hint-color, #ccc);
+            border-radius: 50%;
+            border-top-color: var(--tg-theme-button-color, #007AFF);
+            animation: spin 1s ease-in-out infinite;
+            margin-bottom: 16px;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .error {
+            background: rgba(255, 59, 48, 0.15);
+            color: #ff3b30;
+            padding: 16px;
+            border-radius: 8px;
+            margin: 20px 0;
+            text-align: center;
+        }
+
+        .watch-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 16px;
+            margin-bottom: 20px;
+        }
+
+        .watch-card {
+            background: var(--tg-theme-secondary-bg-color, #f5f5f5);
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+            transition: transform 0.2s ease;
+            cursor: pointer;
+        }
+
+        .watch-card:hover {
+            transform: translateY(-2px);
+        }
+
+        .watch-image {
+            width: 100%;
+            height: 200px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 48px;
+            position: relative;
+        }
+
+        .watch-info {
+            padding: 16px;
+        }
+
+        .watch-description {
+            font-size: 16px;
+            font-weight: 600;
+            margin-bottom: 8px;
+            line-height: 1.3;
+        }
+
+        .watch-price {
+            font-size: 20px;
+            font-weight: 700;
+            color: var(--tg-theme-button-color, #007AFF);
+            margin-bottom: 8px;
+        }
+
+        .watch-notes {
+            font-size: 14px;
+            color: var(--tg-theme-hint-color, #999999);
+            margin-bottom: 16px;
+            line-height: 1.4;
+        }
+
+        .watch-actions {
+            display: flex;
+            gap: 8px;
+        }
+
+        .btn {
+            flex: 1;
+            padding: 10px 16px;
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .btn-primary {
+            background: var(--tg-theme-button-color, #007AFF);
+            color: var(--tg-theme-button-text-color, #ffffff);
+        }
+
+        .btn-secondary {
+            background: transparent;
+            color: var(--tg-theme-button-color, #007AFF);
+            border: 1px solid var(--tg-theme-button-color, #007AFF);
+        }
+
+        .btn:hover {
+            opacity: 0.8;
+        }
+
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 1000;
+            padding: 20px;
+        }
+
+        .modal-content {
+            background: var(--tg-theme-bg-color, #ffffff);
+            border-radius: 12px;
+            max-width: 400px;
+            margin: 10% auto;
+            padding: 24px;
+            position: relative;
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .modal-title {
+            font-size: 20px;
+            font-weight: 600;
+        }
+
+        .close-btn {
+            background: none;
+            border: none;
+            font-size: 24px;
+            cursor: pointer;
+            color: var(--tg-theme-hint-color, #999999);
+        }
+
+        .form-group {
+            margin-bottom: 16px;
+        }
+
+        .form-label {
+            display: block;
+            font-size: 14px;
+            font-weight: 600;
+            margin-bottom: 6px;
+        }
+
+        .form-input {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid var(--tg-theme-hint-color, #999999);
+            border-radius: 8px;
+            font-size: 16px;
+            background: var(--tg-theme-bg-color, #ffffff);
+            color: var(--tg-theme-text-color, #000000);
+        }
+
+        .form-textarea {
+            resize: vertical;
+            min-height: 80px;
+        }
+
+        .modal-actions {
+            display: flex;
+            gap: 12px;
+            margin-top: 20px;
+        }
+
+        .refresh-btn {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            width: 56px;
+            height: 56px;
+            border-radius: 50%;
+            background: var(--tg-theme-button-color, #007AFF);
+            color: var(--tg-theme-button-text-color, #ffffff);
+            border: none;
+            font-size: 20px;
+            cursor: pointer;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+            transition: all 0.2s ease;
+        }
+
+        .refresh-btn:hover {
+            transform: scale(1.05);
+        }
+
+        .refresh-btn:active {
+            transform: scale(0.95);
+        }
+
+        @media (max-width: 768px) {
+            .watch-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .modal-content {
+                margin: 5% auto;
+                max-width: 95%;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>⌚ Premium Watch Collection</h1>
+        <p>Select a timepiece to purchase or make an offer</p>
+    </div>
+
+    <div id="loadingIndicator" class="loading">
+        <div class="loading-spinner"></div>
+        <p>Loading inventory from Google Sheets...</p>
+    </div>
+
+    <div id="errorMessage" class="error" style="display: none;"></div>
+
+    <div class="watch-grid" id="watchGrid">
+        <!-- Watches will be populated from Google Sheets -->
+    </div>
+
+    <!-- Purchase Modal -->
+    <div class="modal" id="purchaseModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 class="modal-title">Purchase Watch</h3>
+                <button class="close-btn" onclick="closeModal('purchaseModal')">&times;</button>
+            </div>
+            <div id="purchaseContent">
+                <!-- Content will be populated by JavaScript -->
+            </div>
+            <div class="modal-actions">
+                <button class="btn btn-secondary" onclick="closeModal('purchaseModal')">Cancel</button>
+                <button class="btn btn-primary" onclick="confirmPurchase()">Confirm Purchase</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Offer Modal -->
+    <div class="modal" id="offerModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 class="modal-title">Make an Offer</h3>
+                <button class="close-btn" onclick="closeModal('offerModal')">&times;</button>
+            </div>
+            <div id="offerContent">
+                <!-- Content will be populated by JavaScript -->
+            </div>
+            <form id="offerForm">
+                <div class="form-group">
+                    <label class="form-label" for="offerAmount">Your Offer ($)</label>
+                    <input type="number" id="offerAmount" class="form-input" placeholder="Enter your offer amount" required>
+                </div>
+                <div class="form-group">
+                    <label class="form-label" for="offerMessage">Message (optional)</label>
+                    <textarea id="offerMessage" class="form-input form-textarea" placeholder="Any additional details..."></textarea>
+                </div>
+            </form>
+            <div class="modal-actions">
+                <button class="btn btn-secondary" onclick="closeModal('offerModal')">Cancel</button>
+                <button class="btn btn-primary" onclick="submitOffer()">Submit Offer</button>
+            </div>
+        </div>
+    </div>
+
+    <button class="refresh-btn" onclick="loadWatches()" title="Refresh inventory">🔄</button>
+
+    <script>
+        // CONFIGURATION - Replace with your Google Sheets details
+        const SHEET_CONFIG = {
+            // Replace 'YOUR_SHEET_ID' with your actual Google Sheets ID
+            // You can find this in your sheet URL: https://docs.google.com/spreadsheets/d/YOUR_SHEET_ID/edit
+            SHEET_ID: 'YOUR_SHEET_ID_HERE',
+            
+            // Replace 'Sheet1' with your actual sheet name if different
+            SHEET_NAME: 'Sheet1',
+            
+            // Range to fetch (A:C means columns A, B, and C)
+            RANGE: 'A:C'
+        };
+
+        let watches = [];
+        let selectedWatch = null;
+        let tg = null;
+
+        // Initialize Telegram Web App
+        function initTelegramApp() {
+            if (window.Telegram && window.Telegram.WebApp) {
+                tg = window.Telegram.WebApp;
+                tg.ready();
+                tg.expand();
+                
+                // Set theme colors
+                document.body.style.backgroundColor = tg.backgroundColor || '#ffffff';
+                document.body.style.color = tg.textColor || '#000000';
+            }
+        }
+
+        // Load watches from Google Sheets
+        async function loadWatches() {
+            showLoading(true);
+            hideError();
+
+            try {
+                // Construct the Google Sheets CSV export URL
+                const csvUrl = `https://docs.google.com/spreadsheets/d/${SHEET_CONFIG.SHEET_ID}/gviz/tq?tqx=out:csv&sheet=${SHEET_CONFIG.SHEET_NAME}&range=${SHEET_CONFIG.RANGE}`;
+                
+                const response = await fetch(csvUrl);
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}. Make sure your Google Sheet is published and accessible.`);
+                }
+                
+                const csvText = await response.text();
+                const rows = parseCSV(csvText);
+                
+                // Skip header row and process data
+                watches = [];
+                for (let i = 1; i < rows.length; i++) {
+                    const row = rows[i];
+                    
+                    // Skip empty rows
+                    if (!row[0] || row[0].trim() === '') continue;
+                    
+                    const watch = {
+                        id: i,
+                        description: row[0] ? row[0].trim() : '',
+                        price: parsePrice(row[1] ? row[1].trim() : ''),
+                        notes: row[2] ? row[2].trim() : '',
+                        rawPrice: row[1] ? row[1].trim() : ''
+                    };
+                    
+                    watches.push(watch);
+                }
+                
+                renderWatches();
+                showLoading(false);
+                
+            } catch (error) {
+                console.error('Error loading watches:', error);
+                showError(`Failed to load inventory: ${error.message}`);
+                showLoading(false);
+            }
+        }
+
+        // Simple CSV parser
+        function parseCSV(text) {
+            const rows = [];
+            const lines = text.split('\n');
+            
+            for (let line of lines) {
+                if (line.trim() === '') continue;
+                
+                const row = [];
+                let current = '';
+                let inQuotes = false;
+                
+                for (let i = 0; i < line.length; i++) {
+                    const char = line[i];
+                    
+                    if (char === '"') {
+                        inQuotes = !inQuotes;
+                    } else if (char === ',' && !inQuotes) {
+                        row.push(current.trim());
+                        current = '';
+                    } else {
+                        current += char;
+                    }
+                }
+                
+                row.push(current.trim());
+                rows.push(row);
+            }
+            
+            return rows;
+        }
+
+        // Parse price from string
+        function parsePrice(priceStr) {
+            if (!priceStr) return 0;
+            
+            // Remove currency symbols and commas, extract numbers
+            const numericStr = priceStr.replace(/[^\d.,]/g, '');
+            const price = parseFloat(numericStr.replace(/,/g, ''));
+            
+            return isNaN(price) ? 0 : price;
+        }
+
+        // Format price for display
+        function formatPrice(price, rawPrice) {
+            if (rawPrice && rawPrice.toLowerCase().includes('sold')) {
+                return 'SOLD';
+            }
+            if (rawPrice && rawPrice.toLowerCase().includes('pending')) {
+                return 'PENDING';
+            }
+            if (price === 0 && rawPrice) {
+                return rawPrice; // Show original text if can't parse as number
+            }
+            return price > 0 ? `$${price.toLocaleString()}` : rawPrice || 'Price on request';
+        }
+
+        // Check if item is available
+        function isAvailable(rawPrice) {
+            if (!rawPrice) return true;
+            const lower = rawPrice.toLowerCase();
+            return !lower.includes('sold') && !lower.includes('pending');
+        }
+
+        // Render watches
+        function renderWatches() {
+            const grid = document.getElementById('watchGrid');
+            grid.innerHTML = '';
+
+            if (watches.length === 0) {
+                grid.innerHTML = '<div style="text-align: center; padding: 40px; color: var(--tg-theme-hint-color, #999999);">No watches found in the inventory.</div>';
+                return;
+            }
+
+            watches.forEach(watch => {
+                const watchCard = document.createElement('div');
+                watchCard.className = 'watch-card';
+                
+                const available = isAvailable(watch.rawPrice);
+                const formattedPrice = formatPrice(watch.price, watch.rawPrice);
+                
+                watchCard.innerHTML = `
+                    <div class="watch-image">⌚</div>
+                    <div class="watch-info">
+                        <div class="watch-description">${watch.description}</div>
+                        <div class="watch-price">${formattedPrice}</div>
+                        ${watch.notes ? `<div class="watch-notes">${watch.notes}</div>` : ''}
+                        <div class="watch-actions">
+                            <button class="btn btn-primary" onclick="showPurchaseModal(${watch.id})" 
+                                    ${!available ? 'disabled' : ''}>
+                                ${!available ? 'Not Available' : 'Buy Now'}
+                            </button>
+                            <button class="btn btn-secondary" onclick="showOfferModal(${watch.id})"
+                                    ${!available ? 'disabled' : ''}>
+                                ${!available ? 'N/A' : 'Make Offer'}
+                            </button>
+                        </div>
+                    </div>
+                `;
+                
+                grid.appendChild(watchCard);
+            });
+        }
+
+        // Show/hide loading indicator
+        function showLoading(show) {
+            const loading = document.getElementById('loadingIndicator');
+            loading.style.display = show ? 'block' : 'none';
+        }
+
+        // Show error message
+        function showError(message) {
+            const errorDiv = document.getElementById('errorMessage');
+            errorDiv.textContent = message;
+            errorDiv.style.display = 'block';
+        }
+
+        // Hide error message
+        function hideError() {
+            document.getElementById('errorMessage').style.display = 'none';
+        }
+
+        // Show purchase modal
+        function showPurchaseModal(watchId) {
+            const watch = watches.find(w => w.id === watchId);
+            if (!watch || !isAvailable(watch.rawPrice)) return;
+            
+            selectedWatch = watch;
+            
+            const content = document.getElementById('purchaseContent');
+            content.innerHTML = `
+                <div style="text-align: center; margin-bottom: 20px;">
+                    <div style="font-size: 48px; margin-bottom: 12px;">⌚</div>
+                    <h4>${watch.description}</h4>
+                    ${watch.notes ? `<p style="color: var(--tg-theme-hint-color, #999999); margin: 8px 0;">${watch.notes}</p>` : ''}
+                    <div style="font-size: 24px; font-weight: 700; color: var(--tg-theme-button-color, #007AFF); margin-top: 12px;">
+                        ${formatPrice(watch.price, watch.rawPrice)}
+                    </div>
+                </div>
+                <p style="text-align: center; color: var(--tg-theme-hint-color, #999999);">
+                    Ready to purchase this timepiece?
+                </p>
+            `;
+            
+            document.getElementById('purchaseModal').style.display = 'block';
+        }
+
+        // Show offer modal
+        function showOfferModal(watchId) {
+            const watch = watches.find(w => w.id === watchId);
+            if (!watch || !isAvailable(watch.rawPrice)) return;
+            
+            selectedWatch = watch;
+            
+            const content = document.getElementById('offerContent');
+            content.innerHTML = `
+                <div style="text-align: center; margin-bottom: 20px;">
+                    <div style="font-size: 48px; margin-bottom: 12px;">⌚</div>
+                    <h4>${watch.description}</h4>
+                    ${watch.notes ? `<p style="color: var(--tg-theme-hint-color, #999999); margin: 8px 0;">${watch.notes}</p>` : ''}
+                    <div style="font-size: 20px; font-weight: 600; color: var(--tg-theme-hint-color, #999999); margin-top: 12px;">
+                        Listed at: ${formatPrice(watch.price, watch.rawPrice)}
+                    </div>
+                </div>
+            `;
+            
+            // Reset form
+            document.getElementById('offerForm').reset();
+            document.getElementById('offerModal').style.display = 'block';
+        }
+
+        // Close modal
+        function closeModal(modalId) {
+            document.getElementById(modalId).style.display = 'none';
+            selectedWatch = null;
+        }
+
+        // Confirm purchase
+        function confirmPurchase() {
+            if (!selectedWatch) return;
+            
+            const userData = tg ? {
+                userId: tg.initDataUnsafe?.user?.id,
+                username: tg.initDataUnsafe?.user?.username,
+                firstName: tg.initDataUnsafe?.user?.first_name
+            } : { userId: 'demo', username: 'demo_user' };
+            
+            const purchaseData = {
+                type: 'purchase',
+                watch: {
+                    description: selectedWatch.description,
+                    price: selectedWatch.rawPrice,
+                    notes: selectedWatch.notes
+                },
+                user: userData,
+                timestamp: new Date().toISOString()
+            };
+            
+            // Send data to Telegram bot
+            if (tg) {
+                tg.sendData(JSON.stringify(purchaseData));
+            } else {
+                // Demo mode
+                alert(`Purchase confirmed!\n\nWatch: ${selectedWatch.description}\nPrice: ${formatPrice(selectedWatch.price, selectedWatch.rawPrice)}\n\nThis would normally send data to your Telegram bot.`);
+            }
+            
+            closeModal('purchaseModal');
+        }
+
+        // Submit offer
+        function submitOffer() {
+            if (!selectedWatch) return;
+            
+            const offerAmount = document.getElementById('offerAmount').value;
+            const offerMessage = document.getElementById('offerMessage').value;
+            
+            if (!offerAmount) {
+                alert('Please enter an offer amount');
+                return;
+            }
+            
+            const userData = tg ? {
+                userId: tg.initDataUnsafe?.user?.id,
+                username: tg.initDataUnsafe?.user?.username,
+                firstName: tg.initDataUnsafe?.user?.first_name
+            } : { userId: 'demo', username: 'demo_user' };
+            
+            const offerData = {
+                type: 'offer',
+                watch: {
+                    description: selectedWatch.description,
+                    price: selectedWatch.rawPrice,
+                    notes: selectedWatch.notes
+                },
+                offer: {
+                    amount: parseFloat(offerAmount),
+                    message: offerMessage
+                },
+                user: userData,
+                timestamp: new Date().toISOString()
+            };
+            
+            // Send data to Telegram bot
+            if (tg) {
+                tg.sendData(JSON.stringify(offerData));
+            } else {
+                // Demo mode
+                alert(`Offer submitted!\n\nWatch: ${selectedWatch.description}\nYour offer: $${parseFloat(offerAmount).toLocaleString()}\nMessage: ${offerMessage || 'None'}\n\nThis would normally send data to your Telegram bot.`);
+            }
+            
+            closeModal('offerModal');
+        }
+
+        // Close modal when clicking outside
+        window.onclick = function(event) {
+            const modals = document.querySelectorAll('.modal');
+            modals.forEach(modal => {
+                if (event.target === modal) {
+                    modal.style.display = 'none';
+                }
+            });
+        }
+
+        // Initialize app
+        document.addEventListener('DOMContentLoaded', function() {
+            initTelegramApp();
+            loadWatches();
+        });
+    </script>
+</body>
+</html>
